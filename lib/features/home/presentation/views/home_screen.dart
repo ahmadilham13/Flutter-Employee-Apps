@@ -11,6 +11,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.currentUser;
+    final contract = user?.contract;
     final now = DateTime.now();
 
     // Custom formatting for date without adding extra dependency
@@ -109,8 +110,18 @@ class HomeScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildStatusIndicator('Check In', '08:30 AM', Icons.login_rounded),
-                        _buildStatusIndicator('Check Out', '--:--', Icons.logout_rounded),
+                        _buildStatusIndicator(
+                          'Check In Schedule', 
+                          contract != null 
+                              ? '${contract.checkinStart} - ${contract.checkinEnd}' 
+                              : '07:45 - 08:15', 
+                          Icons.login_rounded,
+                        ),
+                        _buildStatusIndicator(
+                          'Check Out Target', 
+                          contract?.checkoutTime ?? '17:00', 
+                          Icons.logout_rounded,
+                        ),
                       ],
                     ),
                   ],
@@ -139,9 +150,9 @@ class HomeScreen extends StatelessWidget {
                 childAspectRatio: 1.3,
                 children: [
                   _buildMetricCard(
-                    title: 'Work Hours',
-                    value: '8h 12m',
-                    icon: Icons.timer_outlined,
+                    title: 'Work Type',
+                    value: user?.contract?.workType ?? 'WFO',
+                    icon: Icons.business_rounded,
                     color: AppColors.accent,
                   ),
                   _buildMetricCard(
@@ -151,14 +162,14 @@ class HomeScreen extends StatelessWidget {
                     color: AppColors.success,
                   ),
                   _buildMetricCard(
-                    title: 'Shift',
-                    value: 'Office Regular',
+                    title: 'Shift Plan',
+                    value: user?.contract?.name ?? 'Standard Shift',
                     icon: Icons.work_outline_rounded,
                     color: Colors.orangeAccent,
                   ),
                   _buildMetricCard(
-                    title: 'Leave Balance',
-                    value: '14 Days',
+                    title: 'Work Duration',
+                    value: '${user?.contract?.checkinStart ?? ''} - ${user?.contract?.checkinEnd ?? ''}',
                     icon: Icons.calendar_today_outlined,
                     color: Colors.purpleAccent,
                   ),
@@ -299,6 +310,8 @@ class HomeScreen extends StatelessWidget {
             children: [
               Text(
                 value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -308,6 +321,8 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   color: AppColors.textSecondary,

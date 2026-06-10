@@ -6,6 +6,7 @@ import 'core/utils/local_storage.dart';
 import 'features/auth/presentation/controllers/auth_provider.dart';
 import 'features/auth/presentation/views/login_screen.dart';
 import 'features/navigation/views/main_navigation.dart';
+import 'features/attendance/presentation/controllers/attendance_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,9 @@ void main() async {
       providers: [
         ChangeNotifierProvider(
           create: (_) => AuthProvider()..checkAuth(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AttendanceProvider(),
         ),
       ],
       child: const MyApp(),

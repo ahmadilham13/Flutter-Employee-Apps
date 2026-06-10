@@ -7,4 +7,5 @@ class ApiEndpoints {
   static const String login = '/api/v1/login';
   static const String logout = '/api/v1/logout';
   static const String userProfile = '/api/v1/user';
+  static const String attendanceLogs = '/api/v1/attendance/logs';
 }

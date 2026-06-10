@@ -15,11 +15,8 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    AttendanceScreen(),
-    ProfileScreen(),
-  ];
+  // Track screens that have been opened at least once to lazy load them
+  final List<bool> _loadedScreens = [true, false, false];
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +24,11 @@ class _MainNavigationState extends State<MainNavigation> {
       backgroundColor: AppColors.background,
       body: IndexedStack(
         index: _selectedIndex,
-        children: _screens,
+        children: [
+          const HomeScreen(),
+          _loadedScreens[1] ? const AttendanceScreen() : const SizedBox.shrink(),
+          _loadedScreens[2] ? const ProfileScreen() : const SizedBox.shrink(),
+        ],
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -74,6 +75,7 @@ class _MainNavigationState extends State<MainNavigation> {
             onDestinationSelected: (index) {
               setState(() {
                 _selectedIndex = index;
+                _loadedScreens[index] = true;
               });
             },
             destinations: const [
