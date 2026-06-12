@@ -77,7 +77,7 @@ class UserModel {
       email: userData['email'] ?? '',
       role: resolvedRole,
       position: userData['position'] ?? 'Staff',
-      avatarUrl: userData['avatar_url'] ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop',
+      avatarUrl: userData['profile_photo_url'],
       contract: userData['contract'] != null 
           ? ContractModel.fromJson(userData['contract']) 
           : null,

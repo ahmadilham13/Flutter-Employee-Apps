@@ -169,7 +169,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   _buildMetricCard(
                     title: 'Work Duration',
-                    value: '${user?.contract?.checkinStart ?? ''} - ${user?.contract?.checkinEnd ?? ''}',
+                    value: '${user?.contract?.checkinStart ?? ''} - ${user?.contract?.checkoutTime ?? ''}',
                     icon: Icons.calendar_today_outlined,
                     color: Colors.purpleAccent,
                   ),
