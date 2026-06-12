@@ -111,14 +111,14 @@ class HomeScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         _buildStatusIndicator(
-                          'Check In Schedule', 
+                          'Check In', 
                           contract != null 
                               ? '${contract.checkinStart} - ${contract.checkinEnd}' 
                               : '07:45 - 08:15', 
                           Icons.login_rounded,
                         ),
                         _buildStatusIndicator(
-                          'Check Out Target', 
+                          'Check Out', 
                           contract?.checkoutTime ?? '17:00', 
                           Icons.logout_rounded,
                         ),
