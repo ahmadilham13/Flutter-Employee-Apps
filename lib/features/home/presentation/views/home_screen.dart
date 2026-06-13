@@ -3,9 +3,24 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:employeeapps/core/constants/app_colors.dart';
 import 'package:employeeapps/features/auth/presentation/controllers/auth_provider.dart';
+import 'package:employeeapps/features/home/presentation/controllers/working_hours_provider.dart';
+import 'package:employeeapps/features/attendance/data/models/attendance_log_model.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<WorkingHoursProvider>().fetchWorkingHours();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -229,11 +244,133 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 32),
+
+              // Recent Attendance
+              Text(
+                'Recent Attendance',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Consumer<WorkingHoursProvider>(
+                builder: (context, provider, child) {
+                  if (provider.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (provider.errorMessage != null) {
+                    return Center(
+                      child: Text(
+                        provider.errorMessage!,
+                        style: GoogleFonts.plusJakartaSans(color: Colors.red),
+                      ),
+                    );
+                  }
+
+                  if (provider.attendances.isEmpty) {
+                    return Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          'No attendance data found.',
+                          style: GoogleFonts.plusJakartaSans(color: AppColors.textSecondary),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return _buildAttendanceTable(provider.attendances);
+                },
+              ),
+              const SizedBox(height: 32),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildAttendanceTable(List<AttendanceLogModel> attendances) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.surface.withOpacity(0.5),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: DataTable(
+          columnSpacing: 24,
+          headingTextStyle: GoogleFonts.plusJakartaSans(
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+            fontSize: 14,
+          ),
+          dataTextStyle: GoogleFonts.plusJakartaSans(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+          ),
+          columns: const [
+            DataColumn(label: Text('Date')),
+            DataColumn(label: Text('Check In')),
+            DataColumn(label: Text('Check Out')),
+            DataColumn(label: Text('Status')),
+          ],
+          rows: attendances.map((attendance) {
+            return DataRow(
+              cells: [
+                DataCell(Text(attendance.date)),
+                DataCell(Text(attendance.checkinTime ?? '-')),
+                DataCell(Text(attendance.checkoutTime ?? '-')),
+                DataCell(
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(attendance.checkinStatus).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      attendance.checkinStatus?.toUpperCase() ?? '-',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: _getStatusColor(attendance.checkinStatus),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'ontime':
+        return AppColors.success;
+      case 'late':
+        return Colors.orangeAccent;
+      case 'early_leaving':
+        return Colors.lightBlueAccent;
+      default:
+        return AppColors.textSecondary;
+    }
   }
 
   Widget _buildStatusIndicator(String title, String time, IconData icon) {
