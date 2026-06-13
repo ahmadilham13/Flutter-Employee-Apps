@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:employeeapps/core/constants/app_colors.dart';
 import 'package:employeeapps/features/auth/presentation/controllers/auth_provider.dart';
 import 'package:employeeapps/features/home/presentation/controllers/working_hours_provider.dart';
+import 'package:employeeapps/features/attendance/presentation/controllers/check_in_out_provider.dart';
 import 'package:employeeapps/features/attendance/data/models/attendance_log_model.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -14,25 +16,46 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  Timer? _timer;
+  DateTime _currentTime = DateTime.now();
+
   @override
   void initState() {
     super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {
+          _currentTime = DateTime.now();
+        });
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<WorkingHoursProvider>().fetchWorkingHours();
     });
   }
 
   @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+    final workingHoursProvider = Provider.of<WorkingHoursProvider>(context);
+    final checkInOutProvider = Provider.of<CheckInOutProvider>(context);
+    
     final user = authProvider.currentUser;
     final contract = user?.contract;
-    final now = DateTime.now();
+    final now = _currentTime;
 
     // Custom formatting for date without adding extra dependency
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     final dateStr = '${days[now.weekday % 7]}, ${now.day} ${months[now.month - 1]} ${now.year}';
+    final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -115,10 +138,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 8),
                     Text(
                       dateStr,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      timeStr,
                       style: GoogleFonts.outfit(
-                        fontSize: 20,
+                        fontSize: 32,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
+                        letterSpacing: 2.0,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -139,6 +171,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 24),
+                    _buildCheckInOutButton(context, workingHoursProvider, checkInOutProvider),
                   ],
                 ),
               ),
@@ -295,6 +329,181 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCheckInOutButton(BuildContext context, WorkingHoursProvider whProvider, CheckInOutProvider cioProvider) {
+    final now = DateTime.now();
+    final dateKey = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    
+    final todayList = whProvider.attendances.where((a) => a.date == dateKey).toList();
+    final todayAttendance = todayList.isNotEmpty ? todayList.first : null;
+
+    final isCheckedIn = todayAttendance != null && todayAttendance.checkinTime != null;
+    final isCheckedOut = todayAttendance != null && todayAttendance.checkoutTime != null;
+
+    if (isCheckedOut) {
+      return SizedBox(
+        width: double.infinity,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: Text(
+              'Done for today',
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final isCheckInAction = !isCheckedIn;
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: cioProvider.isLoading ? null : () => _handleCheckInOut(context, isCheckInAction),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: AppColors.primary,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+        ),
+        child: cioProvider.isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Text(
+                isCheckInAction ? 'Check In Now' : 'Check Out Now',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+      ),
+    );
+  }
+
+  void _handleCheckInOut(BuildContext context, bool isCheckIn) async {
+    final provider = context.read<CheckInOutProvider>();
+    
+    if (isCheckIn) {
+      final success = await provider.checkIn();
+      if (success) {
+        if (context.mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Check-in successful!')));
+           context.read<WorkingHoursProvider>().fetchWorkingHours();
+        }
+      } else {
+        if (context.mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(provider.errorMessage ?? 'Check-in failed')));
+        }
+      }
+    } else {
+      final authProvider = context.read<AuthProvider>();
+      final contract = authProvider.currentUser?.contract;
+      bool isEarly = false;
+      
+      if (contract != null && contract.checkoutTime != null) {
+        final now = DateTime.now();
+        final parts = contract.checkoutTime!.split(':');
+        if (parts.length >= 2) {
+          final checkoutHour = int.tryParse(parts[0]) ?? 17;
+          final checkoutMin = int.tryParse(parts[1]) ?? 0;
+          
+          final checkoutDateTime = DateTime(now.year, now.month, now.day, checkoutHour, checkoutMin);
+          if (now.isBefore(checkoutDateTime)) {
+            isEarly = true;
+          }
+        }
+      }
+      
+      String? reason;
+      if (isEarly) {
+        reason = await _showEarlyLeavingDialog(context);
+        if (reason == null) return; // User cancelled
+      }
+      
+      final success = await provider.checkOut(earlyLeavingReason: reason);
+      if (success) {
+        if (context.mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Check-out successful!')));
+           context.read<WorkingHoursProvider>().fetchWorkingHours();
+        }
+      } else {
+        if (context.mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(provider.errorMessage ?? 'Check-out failed')));
+        }
+      }
+    }
+  }
+
+  Future<String?> _showEarlyLeavingDialog(BuildContext context) {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Text(
+            'Early Check-Out',
+            style: GoogleFonts.outfit(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'You are leaving before your scheduled checkout time. Please provide a reason:',
+                style: GoogleFonts.plusJakartaSans(color: AppColors.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                style: GoogleFonts.plusJakartaSans(color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Reason...',
+                  hintStyle: GoogleFonts.plusJakartaSans(color: AppColors.textSecondary.withOpacity(0.5)),
+                  filled: true,
+                  fillColor: AppColors.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, controller.text),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text('Submit', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
     );
   }
 

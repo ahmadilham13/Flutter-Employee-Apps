@@ -8,6 +8,7 @@ import 'features/auth/presentation/views/login_screen.dart';
 import 'features/navigation/views/main_navigation.dart';
 import 'features/attendance/presentation/controllers/attendance_provider.dart';
 import 'features/home/presentation/controllers/working_hours_provider.dart';
+import 'features/attendance/presentation/controllers/check_in_out_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +27,9 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (_) => WorkingHoursProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => CheckInOutProvider(),
         ),
       ],
       child: const MyApp(),
